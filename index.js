@@ -175,7 +175,7 @@ async function post(agent, item) {
         },
         $type: "app.bsky.embed.external",
       };
-    } else if (item.image_url && item.image_url.includes("media")) {
+    } else if (item.image_url && item.image_url.includes("media") || item.image_url.includes("video_thumb")) {
       if (item.imageUrls.length > 0) {
         const imagePromises = item.imageUrls.map(async (imageUrl) => {
           const buffer = await fetch(imageUrl)
@@ -216,7 +216,7 @@ async function post(agent, item) {
     }
   } else {
     // Handle cases when item.link is not available
-    if (item.image_url && item.image_url.includes("media")) {
+    if (item.image_url && item.image_url.includes("media") || item.image_url.includes("video_thumb")) {
       if (item.imageUrls.length > 0) {
         const imagePromises = item.imageUrls.map(async (imageUrl) => {
           const buffer = await fetch(imageUrl)
