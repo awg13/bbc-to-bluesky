@@ -1,3 +1,20 @@
+Forked in order to post tweets with the help of [Nitter](https://github.com/zedeus/nitter). This assumes you have a working instance of Nitter running. 
+
+I use this specific fork of Nitter:
+https://github.com/PrivacyDevel/nitter/tree/pre_guest_accounts 
+
+this lets you use your own twitter account to access twitter via cookie auth token. See [nitter.conf](https://github.com/PrivacyDevel/nitter/blob/pre_guest_accounts/nitter.example.conf)
+
+A few caveats regarding this fork:
+
+- It won't post if a tweet exceeds 300 characters.
+- It won't post videos; instead, it posts the video thumbnail.
+- Reply tweets will post as new posts in Bsky instead of appearing under the parent post.
+***
+
+**Original README: 👇** 
+
+
 # Introduction
 
 I used to use Twitter as a news reader. It offered a great user experience as it made it easy to discuss news with friends. Now, I want to introduce this user experience in Bluesky.
