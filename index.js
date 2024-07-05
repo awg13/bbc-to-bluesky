@@ -11,7 +11,7 @@ const settings = [
   {
     account: "did:plc:vdumjbeu23g5r4ormotpuomn",
     password: "app-password",
-    url: "https://127.0.0.1:8811/i/lists/1714350895818031592/rss"
+    url: "https://127.0.0.1:8811/i/lists/1714350895818031592/rss" // "https://nitter.myDomain.com/i/lists/1714350895818031592/rss"
   },
 ];
 
