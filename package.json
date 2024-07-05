@@ -10,9 +10,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@atproto/api": "^0.4.3",
+    "@atproto/api": "^0.6.20",
+    "@google-cloud/functions-framework": "^3.3.0",
     "cheerio": "^1.0.0-rc.12",
+    "js-levenshtein": "^1.1.6",
+    "moment": "^2.29.4",
+    "moment-timezone": "^0.5.43",
     "rss-parser": "^3.13.0",
-    "sharp": "^0.32.4"
-  }
+    "sharp": "^0.32.4",
+    "string-similarity": "^4.0.4"
+  },
+  "repository": "https://github.com/spaghetti-source/bbc-to-bluesky.git"
 }
