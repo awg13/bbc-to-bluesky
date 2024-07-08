@@ -1,9 +1,9 @@
 Forked in order to post tweets with the help of [Nitter](https://github.com/zedeus/nitter). This assumes you have a working instance of Nitter running. 
 
 I use this specific fork of Nitter:
-https://github.com/PrivacyDevel/nitter/tree/pre_guest_accounts 
+https://github.com/PrivacyDevel/nitter
 
-this lets you use your own twitter account to access twitter via cookie auth token. See [nitter.conf](https://github.com/PrivacyDevel/nitter/blob/pre_guest_accounts/nitter.example.conf)
+this lets you use your own twitter account to access twitter via nitter.
 
 A few caveats regarding this fork:
 
