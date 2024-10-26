@@ -1,25 +1,23 @@
 Forked in order to post tweets with the help of [Nitter](https://github.com/zedeus/nitter). This assumes you have a working instance of Nitter running. 
 
-Or you could use a third-party hosted instace like [nitter.privacydev.net](https://nitter.privacydev.net), but they have a high chance of being rate-limited, so use with caution.
+Alternatively, you could use a third-party hosted instance like nitter.privacydev.net, but be cautious, as these instances are often rate-limited.
 
-***
+- index.js handles main tweets, while reply.js manages reply tweets.
+    
+- If a tweet exceeds 300 characters, it will be truncated to 300 characters, and a screenshot of the full tweet will be posted as a reply.
 
-- `index.js` handles main tweets while `reply.js` will handle reply tweets.
+- By default, it uses OpenAI to generate alt text for images. If this isn’t set up, it will use the tweet text or the og:description tag if a URL is present.
 
-- If a tweet exceeds 300 characters, it will truncate into 300 characters and post a screenshot of the full tweet as a reply. 
-
-- It uses OpenAI to genrate alt-text for images by default, if it's not set up, it will simply use tweet text or the value of `og:description` tag if it contains an url in the text.
-
-- If it's a video tweet & the duration is less than 60 seconds, it will post as it is (make sure to install [yt-dlp](https://github.com/yt-dlp/yt-dlp)), but if it is more than 60 seconds, it will post the link to video instead.
+- For video tweets, if the duration is less than 60 seconds, it will post the video directly (ensure yt-dlp is installed). If longer, it will post the video link instead.
 
 **PS: This was largely done with the help of ChatGPT and I have no idea what I am doing :')**
 
 #### Caveats:
-- If a tweet thread with _more than 3 tweets_ gets posted within a short period time (1-2 minutes), it will only post the main tweet and the last 2 tweets in the thread.
+- If a tweet thread with more than three tweets is posted within a short timeframe (1–2 minutes), only the main tweet and the last two tweets in the thread will be posted.
+Retweets will post as new tweets.
 
-- Retweets will post as new posts.
-- Quote tweets will probably not work.
-- If a tweet contains multiple images AND a video, it might simply post the video instead.
+- Quote tweets may not work.
+- If a tweet contains multiple images and a video, only the video might be posted.
 ***
 
 **Original README: 👇** 
