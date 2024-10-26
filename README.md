@@ -2,6 +2,8 @@ Forked in order to post tweets with the help of [Nitter](https://github.com/zede
 
 Alternatively, you could use a third-party hosted instance like nitter.privacydev.net, but be cautious, as these instances are often rate-limited.
 
+***
+
 - index.js handles main tweets, while reply.js manages reply tweets.
     
 - If a tweet exceeds 300 characters, it will be truncated to 300 characters, and a screenshot of the full tweet will be posted as a reply.
