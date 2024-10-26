@@ -1,15 +1,25 @@
 Forked in order to post tweets with the help of [Nitter](https://github.com/zedeus/nitter). This assumes you have a working instance of Nitter running. 
 
-I use this specific fork of Nitter:
-https://github.com/PrivacyDevel/nitter/tree/pre_guest_accounts 
+Or you could use a third-party hosted instace like [nitter.privacydev.net](https://nitter.privacydev.net), but they have a high chance of being rate-limited, so use with caution.
 
-this lets you use your own twitter account to access twitter via cookie auth token. See [nitter.conf](https://github.com/PrivacyDevel/nitter/blob/pre_guest_accounts/nitter.example.conf)
+***
 
-A few caveats regarding this fork:
+- `index.js` handles main tweets while `reply.js` will handle reply tweets.
 
-- It won't post if a tweet exceeds 300 characters.
-- It won't post videos; instead, it posts the video thumbnail.
-- Reply tweets will post as new posts in Bsky instead of appearing under the parent post.
+- If a tweet exceeds 300 characters, it will truncate into 300 characters and post a screenshot of the full tweet as a reply. 
+
+- It uses OpenAI to genrate alt-text for images by default, if it's not set up, it will simply use tweet text or the value of `og:description` tag if it contains an url in the text.
+
+- If it's a video tweet & the duration is less than 60 seconds, it will post as it is (make sure to install [yt-dlp](https://github.com/yt-dlp/yt-dlp)), but if it is more than 60 seconds, it will post the link to video instead.
+
+**PS: This was largely done with the help of ChatGPT and I have no idea what I am doing :')**
+
+#### Caveats:
+- If a tweet thread with _more than 3 tweets_ gets posted within a short period time (1-2 minutes), it will only post the main tweet and the last 2 tweets in the thread.
+
+- Retweets will post as new posts.
+- Quote tweets will probably not work.
+- If a tweet contains multiple images AND a video, it might simply post the video instead.
 ***
 
 **Original README: 👇** 

@@ -35,12 +35,13 @@ function transformDomain(url) {
   const nitterDomain = "nitter-domain.com";
   const twitterDomain = "twitter.com";
 
+  if (url==null) return url;
+
   if (url.includes(nitterDomain)) {
     return url.replace(nitterDomain, twitterDomain);
   }
   return url;
 }
-
 
 async function getBloombergData(url) {
   // Utility function for delay
@@ -53,7 +54,7 @@ async function getBloombergData(url) {
     args: ['--enable-features=ExperimentalWebPlatformFeatures', '--no-sandbox', '--disable-setuid-sandbox', '--window-size=1920,1080', '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36', '--disable-dev-shm-usage', '--no-zygote', '--single-process'] // Enable necessary features
 });
   const page = await browser.newPage();
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+//  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
 
   try {
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
@@ -90,6 +91,7 @@ async function getBloombergData(url) {
         }
       } catch (e) {
         console.log('No cookie consent or redirection detected, or timed out.');
+
       }
     }
 
@@ -133,6 +135,7 @@ async function getTitleAndDescriptionFromURL(url) {
     }
   }
 }
+
 
 let truncateHappened = false;
 
@@ -187,7 +190,8 @@ function removeLinkQueryParameters (text) {
 
 }
 
-async function get_feeds(url, maxItems = 10) {
+
+async function get_feeds(url, maxItems = 8) {
   const parser = new Parser();
   const feed = await parser.parseURL(url);
   let output = [];
@@ -262,6 +266,7 @@ async function get_feeds(url, maxItems = 10) {
 
   return output;
 }
+
 async function getAltTextFromOpenAI(imageBuffer, title4) {
   const openaiEndpoint = 'https://api.openai.com/v1/chat/completions';
   
@@ -307,13 +312,12 @@ async function getAltTextFromOpenAI(imageBuffer, title4) {
   }
 }
 
-async function post(agent, item) {
+async function post(agent, item, previousItem) {
+  const containsURL = (text) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return urlRegex.test(text);
+  };
 
-
-  if (item.title3.includes("R to @BBCBreaking")) {
-    console.log("Skipped: Item title contains 'R to @BBCBreaking'.");
-    return;  
-  }
 
   let articleTitle = null;
   let description = null;
@@ -382,10 +386,33 @@ async function post(agent, item) {
     });
   }
 
+
+
+if ($("div.before-tweet.thread-line").length) {
+  const latestTweet = $("div.before-tweet.thread-line .timeline-item").last();
+  let tweetLink = latestTweet.find("a.tweet-link").attr("href");
+
+  if (tweetLink && !tweetLink.startsWith("http")) {
+    tweetLink = `https://nitter-domain.com${tweetLink}`;
+  }
+
+  const tweetResponse = await fetch(tweetLink);
+  const tweetHtml = await tweetResponse.text();
+  const tweet$ = cheerio.load(tweetHtml);
+  let previousItemV2 = tweet$("meta[property='og:description']").attr("content");
+  let previousLinked = tweet$("link[rel='canonical']").attr("href");
+  const previousItemV2OG = tweet$("meta[property='og:description']").attr("content");
+
+  previousItemV2 = truncateAndAppendLink(previousItemV2, previousLinked);
+
+  console.log(`"THE REAL PREVIOUS ITEM:" ${previousItemV2}`);
+
+
+
   const bskyText = new RichText({ text: item.title });
   const bskyText2 = new RichText({ text: item.title2 });
-  await bskyText.detectFacets(BskyAgent);
-  await bskyText2.detectFacets(BskyAgent);
+  await bskyText.detectFacets(agent);
+  await bskyText2.detectFacets(agent);
 
   let facets1 = bskyText.facets || [];
   let facets2 = bskyText2.facets || [];
@@ -445,6 +472,7 @@ async function post(agent, item) {
     langs: ["en"],
     facets: facets1,
   };
+
   if (videoUrl) {
     try {
       const videoFileName = `temp_video_${Date.now()}.mp4`;
@@ -521,7 +549,104 @@ async function post(agent, item) {
       };
     }
   }
-  // Check if item.link is available before using it
+
+  let replyRef = null;
+
+  // Ensure previousItemV2 is not null before proceeding
+if (!previousItemV2) {
+  console.error("either failed to fetch the previous item or it's not a reply tweet.");
+  return;
+} else {
+
+    console.log("Searching for similar posts in BlueSky...");
+    let processed = new Set();
+    let cursor = "";
+    for (let i = 0; i < 3; ++i) {
+      console.log(`Fetching author feed, iteration ${i + 1}`);
+      const response = await agent.getAuthorFeed({
+        actor: "afp-bot.bsky.social",
+        limit: 55,
+        cursor: cursor,
+      });
+      cursor = response.cursor;
+      console.log(`Fetched ${response.data.feed.length} posts`);
+
+      for (const feed of response.data.feed) {
+        const postText = feed.post.record.text;
+        const postTest = feed.post.record;
+        const postCreatedAt = new Date(feed.post.record.createdAt);
+
+        console.log(`Checking post: "${postText}" created at ${postCreatedAt}`);
+        console.log(`Previous item title: "${previousItemV2}"`);
+
+        if (similarity(postText, previousItemV2) >= 0.8) {
+
+          console.log(`Found similar post: ${JSON.stringify(postTest, null, 2)}`);
+          console.log(`Similarity score: ${similarity(postText, previousItemV2)}`);
+          replyRef = {
+            parent: {
+              cid: feed.post.cid,
+              uri: feed.post.uri,
+            },
+
+            root: {
+              cid: feed?.reply?.root?.cid || feed?.reply?.parent?.cid || feed.post.cid,
+              uri: feed?.reply?.root?.uri || feed?.reply?.parent?.uri || feed.post.uri,
+            },
+          };
+          break;
+        } else if (similarity(postText, previousItemV2OG) >= 0.8) {
+
+          console.log(`Found similar post: ${JSON.stringify(postTest, null, 2)}`);
+          console.log(`Similarity score: ${similarity(postText, previousItemV2OG)}`);
+          replyRef = {
+            parent: {
+              cid: feed.post.cid,
+              uri: feed.post.uri,
+            },
+
+            root: {
+              cid: feed?.reply?.root?.cid || feed?.reply?.parent?.cid || feed.post.cid,
+              uri: feed?.reply?.root?.uri || feed?.reply?.parent?.uri || feed.post.uri,
+            },
+          };
+          break;
+
+        } else {
+          console.log(`No match found for post: "${postText}"`);
+          console.log(`Similarity score: ${similarity(postText, previousItemV2)}`);
+        }
+      }
+
+      if (replyRef) {
+        console.log(`Replying to similar post: ${replyRef.parent.uri}`);
+        break;
+      }
+    }
+
+    if (!replyRef) {
+      console.log("No similar posts found.");
+    }
+  }
+
+  if (replyRef) {
+    post.reply = replyRef;
+  } else if 
+  ((!replyRef && item.title3.startsWith("R to @BBCBREAKING:") && item.title2.startsWith("#BREAKING")) || (!replyRef && item.title3.startsWith("R to @BBCBREAKING:") && item.title2.startsWith("BREAKING")) ) {
+    console.log("even though there's no similar post for previous item in the bsky feed, it's a breaking news updae, so continuing:")
+  } 
+else {
+  console.log("No previous item found, skipping similarity search");
+  return;
+}
+
+  // Add additional debug logging to ensure the replyRef is correctly set
+  if (post.reply) {
+    console.log("Reply reference set: ", post.reply);
+  } else {
+    console.log("No reply reference set.");
+  }
+
   if (item.link) {
     const dom = await fetch(item.linked)
       .then((response) => response.text())
@@ -529,13 +654,10 @@ async function post(agent, item) {
 
     let image_url = null;
     const image_url_ = dom('head > meta[property="og:image"]');
-    const articleLink_ = dom('head > meta[property="og:url"]');
     if (image_url_) {
       image_url = image_url_.attr("content");
     }
-    if (articleLink_) {
-      articleLink = articleLink_.attr("content");
-    }
+
 
     if (item.image_url && item.image_url.includes("card_img") && !(videoUrl)) {
       const { title: extractedTitle, description: extractedDescription, link: extractedLink } = await getTitleAndDescriptionFromURL(item.link);
@@ -563,6 +685,7 @@ async function post(agent, item) {
       const image = await agent.uploadBlob(buffer, { encoding: "image/jpeg" });
       post = {
         text: item.title2,
+        // reply: replyRef,
         $type: "app.bsky.feed.post",
         createdAt: new Date().toISOString(),
         langs: ["en"],
@@ -570,13 +693,16 @@ async function post(agent, item) {
       };
       post["embed"] = {
         external: {
-          uri: articleLinko || articleLink || item.link,
+          uri: articleLinko || item.link,
           title: item.cardTitle || articleTitle || item.title,
           description: item.cardDescription || description || item.title,
           thumb: image.data.blob,
         },
         $type: "app.bsky.embed.external",
       };
+      if (replyRef && !(item.title3.startsWith("R to @BBCBREAKING:") && item.title2.startsWith("#BREAKING")) || replyRef && !(item.title3.startsWith("R to @BBCBREAKING:") && item.title2.startsWith("BREAKING")) ) {
+        post.reply = replyRef;
+      }
     } else if (item.image_url && item.image_url.includes("media") && !(videoUrl) || item.image_url && item.image_url.includes("video_thumb") && !(videoUrl)) {
       if (item.imageUrls.length > 0) {
         const imagePromises = item.imageUrls.map(async (imageUrl) => {
@@ -594,31 +720,24 @@ async function post(agent, item) {
                 })
                 .toBuffer()
             );
-  
-            const altText = await getAltTextFromOpenAI(buffer, item.title4);
-            const image = await agent.uploadBlob(buffer, { encoding: "image/jpeg" });
-  
-            return {
-              alt: altText || description || "",
-              image: image.data.blob,
-            };
-          });
-  
+          const altText = await getAltTextFromOpenAI(buffer, item.title4);
+          const image = await agent.uploadBlob(buffer, { encoding: "image/jpeg" });
+
+          return {
+            alt: altText || description || "",
+            image: image.data.blob,
+          };
+        });
+
         const images = await Promise.all(imagePromises);
-  
+
         post["embed"] = {
-          $type: "app.bsky.feed.post",
-          text: item.title,
-          createdAt: new Date().toISOString(),
-          langs: ["en"],
-          facets: facets1,
           $type: "app.bsky.embed.images",
           images: images,
         };
       }
     }
   } else {
-    // Handle cases when item.link is not available
     if (item.image_url && item.image_url.includes("media") && !(videoUrl) || item.image_url && item.image_url.includes("video_thumb") && !(videoUrl)) {
       if (item.imageUrls.length > 0) {
         const imagePromises = item.imageUrls.map(async (imageUrl) => {
@@ -636,30 +755,25 @@ async function post(agent, item) {
                 })
                 .toBuffer()
             );
-  
-            const altText = await getAltTextFromOpenAI(buffer, item.title4);
-            const image = await agent.uploadBlob(buffer, { encoding: "image/jpeg" });
-  
-            return {
-              alt: altText || "",
-              image: image.data.blob,
-            };
-          });
-  
+          const altText = await getAltTextFromOpenAI(buffer, item.title4);
+          const image = await agent.uploadBlob(buffer, { encoding: "image/jpeg" });
+
+          return {
+            alt: altText || "",
+            image: image.data.blob,
+          };
+        });
+
         const images = await Promise.all(imagePromises);
-  
+
         post["embed"] = {
-          $type: "app.bsky.feed.post",
-          text: item.title,
-          createdAt: new Date().toISOString(),
-          langs: ["en"],
-          facets: facets1,
           $type: "app.bsky.embed.images",
           images: images,
         };
       }
+    }
   }
-  }
+
   const res = AppBskyFeedPost.validateRecord(post);
   if (res.success) {
     console.log(post);
@@ -674,7 +788,7 @@ async function post(agent, item) {
         const page = await browser.newPage();
   
         // Set the viewport to a mobile device size
-        await page.setViewport({ width: 3000, height: 5336, isMobile: true });
+        await page.setViewport({ width: 6000, height: 10672, isMobile: true });
   
         // Set the user agent string to a mobile browser
         await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 13_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.4 Mobile/15E148 Safari/604.1');
@@ -705,6 +819,8 @@ async function post(agent, item) {
         console.log("Uploaded screenshot structure:", uploadedScreenshot);
         console.log(`"DEEZ NUTS: ${JSON.stringify(postResponse)}"`);
   
+        // const bskyText3 = new RichText({ text: item.link });
+        // await bskyText3.detectFacets(agent);
         const bskyText3 = item.link ? new RichText({ text: item.link }) : null;
         bskyText3?.detectFacets(agent);
 
@@ -714,8 +830,8 @@ async function post(agent, item) {
           text: item.link || ``,
           createdAt: new Date().toISOString(),
           langs: ["en"],
-          // facets: bskyText3.facets,
           facets: bskyText3?.facets || [],
+          //facets: bskyText3.facets,
           reply: {
             parent: {
               cid: postResponse.cid,
@@ -749,6 +865,53 @@ async function post(agent, item) {
   } else {
     console.log(res.error);
   }
+}}
+
+function transformDomain(link) {
+  if (!link) return link;
+  return link.replace("nitter-domain.com", "twitter.com");
+}
+
+function similarity(s1, s2) {
+  let longer = s1;
+  let shorter = s2;
+  if (s1.length < s2.length) {
+    longer = s2;
+    shorter = s1;
+  }
+  const longerLength = longer.length;
+  if (longerLength === 0) {
+    return 1.0;
+  }
+  return (longerLength - editDistance(longer, shorter)) / parseFloat(longerLength);
+}
+
+function editDistance(s1, s2) {
+  s1 = s1.toLowerCase();
+  s2 = s2.toLowerCase();
+
+  const costs = [];
+  for (let i = 0; i <= s1.length; i++) {
+    let lastValue = i;
+    for (let j = 0; j <= s2.length; j++) {
+      if (i === 0) {
+        costs[j] = j;
+      } else {
+        if (j > 0) {
+          let newValue = costs[j - 1];
+          if (s1.charAt(i - 1) !== s2.charAt(j - 1)) {
+            newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+          }
+          costs[j - 1] = lastValue;
+          lastValue = newValue;
+        }
+      }
+    }
+    if (i > 0) {
+      costs[s2.length] = lastValue;
+    }
+  }
+  return costs[s2.length];
 }
 
 const SESSION_FILE = path.join(process.cwd(), 'bsky-session.json');
@@ -791,7 +954,6 @@ async function main(setting) {
     await login(agent, setting);
   }
 
-
   let processed = new Set();
   let cursor = "";
   for (let i = 0; i < 3; ++i) {
@@ -810,10 +972,20 @@ async function main(setting) {
       }
     }
   }
-  for (const feed of await get_feeds(setting.url)) {
+
+  const feeds = await get_feeds(setting.url);
+  console.log("Fetched feeds:", feeds);
+    // Sort feeds by date, most recent first
+//    feeds.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+  for (let i = 0; i < feeds.length; i++) {
+    const feed = feeds[i];
+    const previousItem = i > 0 ? feeds[i - 1] : null;
+    console.log(`Processing feed item ${i}:`, feed);
+    console.log(`Previous item for feed ${i}:`, previousItem);
+
     if (feed && feed.title && feed.title2) {
       if (!processed.has(feed.title) && !processed.has(feed.title2)) {
-        await post(agent, feed);
+        await post(agent, feed, previousItem);
       } else {
         console.log("skipped " + feed.title);
       }
