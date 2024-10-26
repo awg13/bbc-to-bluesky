@@ -1,14 +1,14 @@
 Forked in order to post tweets with the help of [Nitter](https://github.com/zedeus/nitter). This assumes you have a working instance of Nitter running. 
 
-Alternatively, you could use a third-party hosted instance like nitter.privacydev.net, but be cautious, as these instances are often rate-limited.
+Alternatively, you could use a third-party hosted instance like [nitter.privacydev.net](https://nitter.privacydev.net), but be cautious, as these instances are often rate-limited.
 
 ***
 
-- index.js handles main tweets, while reply.js manages reply tweets.
+- `index.js` handles main tweets, while `reply.js` manages reply tweets.
     
 - If a tweet exceeds 300 characters, it will be truncated to 300 characters, and a screenshot of the full tweet will be posted as a reply.
 
-- By default, it uses OpenAI to generate alt text for images. If this isn’t set up, it will use the tweet text or the og:description tag if a URL is present.
+- By default, it uses OpenAI to generate alt text for images. If this isn’t set up, it will use the tweet text or the `og:description` tag if a URL is present.
 
 - For video tweets, if the duration is less than 60 seconds, it will post the video directly (ensure yt-dlp is installed). If longer, it will post the video link instead.
 
